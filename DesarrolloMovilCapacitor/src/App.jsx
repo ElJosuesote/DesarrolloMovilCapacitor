@@ -2,25 +2,22 @@ import React, { useEffect, useState } from 'react';
 import { Motion } from '@capacitor/motion';
 
 const App = () => {
-  const [position, setPosition] = useState({ x: 50, y: 50 }); // Initial ball position (center of the screen)
-  const [velocity, setVelocity] = useState({ x: 0, y: 0 }); // Velocity for smooth motion
-  const [ballColorIndex, setBallColorIndex] = useState(0); // Index for cycling through colors
+  const [position, setPosition] = useState({ x: 50, y: 50 }); // Ball position (centered initially)
+  const [velocity, setVelocity] = useState({ x: 0, y: 0 }); // Velocity (used for mobile)
+  const [ballColorIndex, setBallColorIndex] = useState(0); // Index for cycling ball colors
 
-  // List of colors to cycle through
+  // List of colors for the ball
   const ballColors = ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#1abc9c'];
 
   useEffect(() => {
-    // Function to handle accelerometer data
+    // Function to handle accelerometer data (mobile devices)
     const startMotion = async () => {
       try {
-        // Subscribe to the accelerometer
         Motion.addListener('accel', (event) => {
           const { x, y } = event.accelerationIncludingGravity;
-
-          // Update velocity based on accelerometer data (reduce sensitivity further)
           setVelocity((prev) => ({
-            x: prev.x - x * 0.1, // Lower sensitivity
-            y: prev.y + y * 0.1, // Invert y-axis for natural movement
+            x: prev.x - x * 0.1,
+            y: prev.y + y * 0.1,
           }));
         });
       } catch (error) {
@@ -30,29 +27,50 @@ const App = () => {
 
     startMotion();
 
-    // Cleanup on unmount
+    // Cleanup accelerometer listeners when the component unmounts
     return () => {
       Motion.removeAllListeners();
     };
   }, []);
 
   useEffect(() => {
-    // Apply damping to simulate "floaty" motion
+    // Apply damping to slow down the ball's motion on mobile
     const interval = setInterval(() => {
       setPosition((prev) => ({
-        x: Math.min(Math.max(prev.x + velocity.x, 0), 100), // Keep within bounds (0 to 100%)
+        x: Math.min(Math.max(prev.x + velocity.x, 0), 100), // Stay within bounds (0 to 100%)
         y: Math.min(Math.max(prev.y + velocity.y, 0), 100),
       }));
 
-      // Reduce velocity over time to simulate friction (increase damping factor further)
       setVelocity((prev) => ({
-        x: prev.x * 0.7, // Stronger damping
+        x: prev.x * 0.7,
         y: prev.y * 0.7,
       }));
     }, 16); // ~60fps
 
     return () => clearInterval(interval);
   }, [velocity]);
+
+  useEffect(() => {
+    // Function to handle mouse movement (desktop devices)
+    const handleMouseMove = (event) => {
+      const { clientX, clientY } = event;
+
+      // Calculate position as a percentage of the viewport
+      const xPercent = (clientX / window.innerWidth) * 100;
+      const yPercent = (clientY / window.innerHeight) * 100;
+
+      // Update the ball's position
+      setPosition({ x: xPercent, y: yPercent });
+    };
+
+    // Add mousemove listener
+    window.addEventListener('mousemove', handleMouseMove);
+
+    // Cleanup mousemove listener when the component unmounts
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, []);
 
   // Function to change the ball's color
   const changeBallColor = () => {
@@ -71,8 +89,8 @@ const App = () => {
       <div
         style={{
           ...styles.ball,
-          backgroundColor: ballColors[ballColorIndex], // Set the ball's color
-          left: `${position.x}%`,
+          backgroundColor: ballColors[ballColorIndex], // Ball color
+          left: `${position.x}%`, // Position based on state
           top: `${position.y}%`,
         }}
       />
@@ -103,7 +121,7 @@ const styles = {
     left: '50%',
     transform: 'translate(-50%, -50%)',
     textAlign: 'center',
-    zIndex: 1,
+    zIndex: 1, // Ensure text is above the ball
   },
   title: {
     fontSize: '24px',
@@ -122,7 +140,7 @@ const styles = {
     height: '50px',
     borderRadius: '50%',
     transform: 'translate(-50%, -50%)', // Center the ball
-    zIndex: 2, // Ensure the ball is above the text
+    // Removed zIndex to ensure it is behind the text
   },
   button: {
     position: 'absolute',
